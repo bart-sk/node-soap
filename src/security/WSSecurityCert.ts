@@ -45,6 +45,7 @@ export interface IWSSecurityCertOptions {
   signatureAlgorithm?: string;
   additionalReferences?: string[];
   signerOptions?: IXmlSignerOptions;
+  addReferenceForTimestamp?: boolean;
 }
 
 export interface IXmlSignerOptions {
@@ -64,6 +65,7 @@ export class WSSecurityCert implements ISecurity {
   private created: string;
   private expires: string;
   private additionalReferences: string[] = [];
+  private addReferenceForTimestamp: boolean = true;
 
   constructor(privatePEM: any, publicP12PEM: any, password: any, options: IWSSecurityCertOptions = {}) {
     this.publicP12PEM = publicP12PEM.toString()
@@ -79,6 +81,19 @@ export class WSSecurityCert implements ISecurity {
         ['http://www.w3.org/2001/10/xml-exc-c14n#'],
         'http://www.w3.org/2001/04/xmlenc#sha256',
       );
+    }
+
+    if (options.signatureAlgorithm === 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512') {
+      this.signer.signatureAlgorithm = options.signatureAlgorithm;
+      this.signer.addReference(
+        bodyXpathPlaceholder,
+        ['http://www.w3.org/2001/10/xml-exc-c14n#'],
+        'http://www.w3.org/2001/04/xmlenc#sha512',
+      );
+    }
+
+    if(options.addReferenceForTimestamp === false){
+      this.addReferenceForTimestamp = false;
     }
 
     if (options.additionalReferences && options.additionalReferences.length > 0) {
@@ -183,7 +198,7 @@ export class WSSecurityCert implements ISecurity {
     }
 
     const timestampXpath = `//*[name(.)='wsse:Security']/*[local-name(.)='Timestamp']`;
-    if (this.hasTimeStamp && !(this.signer.references.filter((ref) => (ref.xpath === timestampXpath)).length > 0)) {
+    if (this.addReferenceForTimestamp && this.hasTimeStamp && !(this.signer.references.filter((ref) => (ref.xpath === timestampXpath)).length > 0)) {
       this.signer.addReference(timestampXpath, references);
     }
 
